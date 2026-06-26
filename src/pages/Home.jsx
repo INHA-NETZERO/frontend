@@ -14,8 +14,10 @@ function Home() {
   }, []);
 
   const loadHome = async () => {
-    try {
-      const [dashboardRes, carbonRes, summaryRes] = await Promise.all([
+    setLoading(true);
+
+    const [dashboardResult, carbonResult, summaryResult] =
+      await Promise.allSettled([
         api.get("/dashboard/summary", {
           params: { storeId: 1 },
         }),
@@ -27,15 +29,49 @@ function Home() {
         }),
       ]);
 
-      setDashboard(dashboardRes.data.data);
-      setCarbon(carbonRes.data.data);
-      setSummary(summaryRes.data.data);
-    } catch (err) {
-      console.error("홈 데이터 조회 실패:", err);
-      alert("홈 데이터를 불러오지 못했습니다.");
-    } finally {
-      setLoading(false);
+    const failedRequests = [];
+
+    if (dashboardResult.status === "fulfilled") {
+      setDashboard(dashboardResult.value.data.data);
+    } else {
+      failedRequests.push({
+        name: "dashboard/summary",
+        error: dashboardResult.reason,
+      });
     }
+
+    if (carbonResult.status === "fulfilled") {
+      setCarbon(carbonResult.value.data.data);
+    } else {
+      failedRequests.push({
+        name: "carbon/today",
+        error: carbonResult.reason,
+      });
+    }
+
+    if (summaryResult.status === "fulfilled") {
+      setSummary(summaryResult.value.data.data);
+    } else {
+      failedRequests.push({
+        name: "carbon/savings/summary",
+        error: summaryResult.reason,
+      });
+    }
+
+    failedRequests.forEach(({ name, error }) => {
+      console.error(`[Home API 실패] ${name}`, {
+        requestUrl: `${error.config?.baseURL ?? ""}${error.config?.url ?? ""}`,
+        status: error.response?.status,
+        response: error.response?.data,
+        message: error.message,
+      });
+    });
+
+    if (failedRequests.length === 3) {
+      alert("홈 데이터를 불러오지 못했습니다.");
+    }
+
+    setLoading(false);
   };
 
   const todayWasteReduction =

@@ -49,6 +49,9 @@ function Report() {
         setLoading(false);
     }
     };
+    if (loading) {
+    return <div>리포트를 불러오는 중...</div>;
+    }
 
   return (
     <div className="page">
