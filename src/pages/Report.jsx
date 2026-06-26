@@ -1,4 +1,6 @@
+import { useEffect, useState } from "react";
 import PageHeader from "../components/common/PageHeader";
+import api from "../services/api";
 import StatCard from "../components/common/StatCard";
 import {
   Bar,
@@ -14,33 +16,39 @@ import {
 } from "recharts";
 import { Leaf, Cloud, Wallet, TrendingUp } from "lucide-react";
 
-const wasteTrend = [
-  { month: "1월", rate: 12 },
-  { month: "2월", rate: 10 },
-  { month: "3월", rate: 9 },
-  { month: "4월", rate: 8 },
-  { month: "5월", rate: 7 },
-  { month: "6월", rate: 5 },
-];
-
-const carbonTrend = [
-  { month: "1월", carbon: 42 },
-  { month: "2월", carbon: 58 },
-  { month: "3월", carbon: 76 },
-  { month: "4월", carbon: 94 },
-  { month: "5월", carbon: 111 },
-  { month: "6월", carbon: 128 },
-];
-
-const costBreakdown = [
-  { name: "유제품", value: 128000 },
-  { name: "신선식품", value: 96000 },
-  { name: "베이커리", value: 84000 },
-  { name: "음료", value: 76000 },
-];
-
 function Report() {
+  const [series, setSeries] = useState([]);
+  const [summary, setSummary] = useState(null);
+  const [loading, setLoading] = useState(true);
   const carEquivalentKm = 213;
+
+  useEffect(() => {
+  loadReport();
+    }, []);
+
+    const loadReport = async () => {
+    try {
+        const [seriesRes, summaryRes] = await Promise.all([
+        api.get("/carbon/savings", {
+            params: {
+            storeId: 1,
+            from: "2026-06-01",
+            to: "2026-06-30",
+            },
+        }),
+        api.get("/carbon/savings/summary", {
+            params: {
+            storeId: 1,
+            },
+        }),
+        ]);
+
+        setSeries(seriesRes.data.data.series);
+        setSummary(summaryRes.data.data);
+    } finally {
+        setLoading(false);
+    }
+    };
 
   return (
     <div className="page">

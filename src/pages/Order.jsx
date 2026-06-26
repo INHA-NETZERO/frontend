@@ -1,65 +1,29 @@
+import { useEffect, useState } from "react";
 import PageHeader from "../components/common/PageHeader";
-
-const orderItems = [
-  {
-    item: "우유",
-    category: "유제품",
-    demand: 18,
-    stock: 12,
-    planned: 20,
-    recommended: 8,
-    extra: 0,
-    waste: "1.4kg",
-    carbon: "2.1kgCO₂e",
-    status: "과잉 가능",
-    tone: "orange",
-    reason: "비 예보와 최근 동일 요일 판매 감소를 반영했습니다.",
-  },
-  {
-    item: "샌드위치",
-    category: "신선식품",
-    demand: 14,
-    stock: 6,
-    planned: 15,
-    recommended: 9,
-    extra: 0,
-    waste: "1.2kg",
-    carbon: "1.8kgCO₂e",
-    status: "과잉 가능",
-    tone: "orange",
-    reason: "강수 예보로 신선식품 수요 감소가 예상됩니다.",
-  },
-  {
-    item: "샐러드",
-    category: "신선식품",
-    demand: 10,
-    stock: 3,
-    planned: 8,
-    recommended: 7,
-    extra: 0,
-    waste: "0.7kg",
-    carbon: "1.1kgCO₂e",
-    status: "적정",
-    tone: "green",
-    reason: "최근 판매 추이를 반영한 적정 수준입니다.",
-  },
-  {
-    item: "크루아상",
-    category: "베이커리",
-    demand: 12,
-    stock: 4,
-    planned: 6,
-    recommended: 9,
-    extra: 2,
-    waste: "0.6kg",
-    carbon: "0.9kgCO₂e",
-    status: "부족 가능",
-    tone: "red",
-    reason: "최근 3일 평균 판매량 증가로 추가 발주를 권장합니다.",
-  },
-];
+import { fetchOrderAnalysis } from "../services/orderService";
 
 function Order() {
+  const [orderItems, setOrderItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadOrders();
+  }, []);
+
+  const loadOrders = async () => {
+    try {
+      const data = await fetchOrderAnalysis(1);
+
+      setOrderItems(data.items);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+  if (loading) {
+    return <div>발주 데이터를 불러오는 중...</div>;
+  }
   return (
     <div className="page">
       <PageHeader
@@ -95,29 +59,29 @@ function Order() {
             </thead>
             <tbody>
               {orderItems.map((item) => (
-                <tr key={item.item}>
+                <tr key={item.itemName}>
                   <td>
-                    <strong>{item.item}</strong>
+                    <strong>{item.itemName}</strong>
                     <p>{item.category}</p>
                   </td>
-                  <td>{item.demand}</td>
+                  <td>{item.horizonForecast.p50}</td>
                   <td>
-                    <input className="mini-input" defaultValue={item.stock} />
+                    <input className="mini-input" defaultValue={item.onHandk} />
                   </td>
                   <td>
                     <input className="mini-input" defaultValue={item.planned} />
                   </td>
                   <td className="recommended-order">
-                    <strong>{item.recommended}</strong>
+                    <strong>{item.recommendedQuantity}</strong>
                     <span>시스템 추천</span>
                   </td>
                   <td>{item.extra}</td>
                   <td>{item.waste}</td>
-                  <td>{item.carbon}</td>
+                  <td>{item.expectedWasteAvoidedKg}</td>
                   <td>
                     <span className={`status ${item.tone}`}>{item.status}</span>
                   </td>
-                  <td className="reason-cell">{item.reason}</td>
+                  <td className="reason-cell">{item.rationale.interpolation}</td>
                   <td>
                     <div className="decision-buttons">
                       <button className="selected">수락</button>

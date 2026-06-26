@@ -1,57 +1,71 @@
-// 현재는 Mock 데이터 사용
-// 나중에 fetch로 교체 가능
-
-import { orderAnalysisData } from '../data/mockData';
+import api from "./api";
 
 /**
- * 발주 분석 데이터 조회
- * 
- * 현재: Mock 데이터 반환
- * 나중에: API 호출로 교체
- * 
- * @param {Object} conditions - 분석 조건 (날씨, 행사 등)
- * @returns {Object} 발주 분석 결과
+ * 발주 추천 목록 조회
+ *
+ * GET /api/v1/recommendations
  */
-export const fetchOrderAnalysis = async (conditions) => {
-  // TODO: 나중에 이렇게 변경
-  // const response = await fetch('https://api.zero-waste.com/analysis', {
-  //   method: 'POST',
-  //   body: JSON.stringify(conditions)
-  // });
-  // return response.json();
+export const fetchOrderAnalysis = async (
+  storeId = 1,
+  date = new Date().toISOString().split("T")[0]
+) => {
+  try {
+    const response = await api.get("/recommendations", {
+      params: {
+        storeId,
+        date,
+      },
+    });
 
-  // 현재는 Mock 데이터 반환
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve(orderAnalysisData);
-    }, 300); // 네트워크 지연 시뮬레이션
-  });
+    return response.data.data;
+  } catch (error) {
+    console.error("발주 추천 조회 실패:", error);
+    throw error;
+  }
 };
 
 /**
- * 품목별 분석 데이터
+ * 품목별 추천 목록
  */
-export const getOrderItems = () => {
-  return orderAnalysisData.items;
+export const getOrderItems = async (
+  storeId = 1,
+  date = new Date().toISOString().split("T")[0]
+) => {
+  const data = await fetchOrderAnalysis(storeId, date);
+  return data.items;
 };
 
 /**
- * 위험 요소 데이터
+ * 발주 추천 상세 조회
  */
-export const getOrderRisks = () => {
-  return orderAnalysisData.risks;
+export const getOrderDetail = async (id) => {
+  try {
+    const response = await api.get(`/recommendations/${id}`);
+    return response.data.data;
+  } catch (error) {
+    console.error("상세 조회 실패:", error);
+    throw error;
+  }
 };
 
 /**
- * 발주 요약
+ * 실제 발주량 저장
  */
-export const getOrderSummary = () => {
-  return orderAnalysisData.summary;
-};
+export const saveActualOrder = async (payload) => {
+  try {
+    const response = await api.put(
+      "/recommendations/actual",
+      payload,
+      {
+        headers: {
+          "X-API-Key": "demo-key",
+        },
+      }
+    );
 
-/**
- * AI 인사이트
- */
-export const getOrderInsights = () => {
-  return orderAnalysisData.insights;
+    return response.data.data;
+  } catch (error) {
+    console.error("실제 발주량 저장 실패:", error);
+    throw error;
+  }
 };

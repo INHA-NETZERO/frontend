@@ -3057,3 +3057,24 @@ td {
     padding: 0 16px;
   }
 }
+
+.waste-feedback {
+  margin-top: 16px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: #f3faf5;
+  border: 1px solid #d8eadc;
+}
+
+.waste-feedback strong {
+  display: block;
+  color: #0f7b44;
+  margin-bottom: 4px;
+}
+
+.waste-feedback p {
+  margin: 0;
+  color: #5f6b76;
+  font-size: 14px;
+  line-height: 1.5;
+}
