@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Bot, Send, X, Sparkles } from "lucide-react";
+import { generateAssistantResponse } from "../../services/assistantService";
 
-const messages = [
+const initialMessages = [
   {
     role: "assistant",
     text: "안녕하세요. 오늘의 발주 추천, 재고 위험, 탄소 절감 효과를 근거 데이터 기반으로 설명해드릴게요.",
@@ -43,12 +44,78 @@ const messages = [
   },
 ];
 
+const suggestedQuestions = [
+  "오늘 가장 위험한 품목은?",
+  "탄소 절감량은 어떻게 계산돼?",
+  "우유 추천 근거 알려줘",
+];
+
 function AICopilot() {
   const [open, setOpen] = useState(false);
+  const [messages, setMessages] = useState(initialMessages);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const bodyRef = useRef(null);
+
+  useEffect(() => {
+    if (!open || !bodyRef.current) {
+      return;
+    }
+
+    bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
+  }, [open, messages, loading]);
+
+  const handleSend = async (message = input) => {
+    const trimmedMessage = message.trim();
+
+    if (!trimmedMessage || loading) {
+      return;
+    }
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "user",
+        text: trimmedMessage,
+      },
+    ]);
+
+    setInput("");
+    setLoading(true);
+
+    try {
+      const assistantResponse =
+        await generateAssistantResponse(trimmedMessage);
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          text:
+            assistantResponse.content ||
+            "응답을 불러오지 못했습니다. 다시 시도해주세요.",
+        },
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleKeyDown = (event) => {
+    if (event.key === "Enter" && !event.nativeEvent.isComposing) {
+      event.preventDefault();
+      handleSend();
+    }
+  };
 
   return (
     <>
-      <button className="copilot-fab" onClick={() => setOpen(true)}>
+      <button
+        type="button"
+        className="copilot-fab"
+        onClick={() => setOpen(true)}
+      >
         <Sparkles size={20} />
         AI Copilot
       </button>
@@ -60,13 +127,18 @@ function AICopilot() {
               <span className="copilot-icon">
                 <Bot size={18} />
               </span>
+
               <div>
                 <strong>AI Copilot</strong>
                 <p>근거 기반 발주 설명</p>
               </div>
             </div>
 
-            <button onClick={() => setOpen(false)}>
+            <button
+              type="button"
+              aria-label="AI Copilot 닫기"
+              onClick={() => setOpen(false)}
+            >
               <X size={18} />
             </button>
           </div>
@@ -76,12 +148,14 @@ function AICopilot() {
             <span>설명: LLM</span>
           </div>
 
-          <div className="copilot-body">
+          <div className="copilot-body" ref={bodyRef}>
             {messages.map((msg, index) => (
               <div
-                key={index}
+                key={`${msg.role}-${index}`}
                 className={
-                  msg.role === "user" ? "chat-msg user" : "chat-msg assistant"
+                  msg.role === "user"
+                    ? "chat-msg user"
+                    : "chat-msg assistant"
                 }
               >
                 <p>{msg.text}</p>
@@ -93,30 +167,60 @@ function AICopilot() {
                     ))}
                   </div>
                 )}
+
                 {msg.evidence && (
-                    <div className="evidence-grid">
-                        {msg.evidence.map((item) => (
-                        <div className={`evidence-card ${item.tone}`} key={item.label}>
-                            <span>{item.label}</span>
-                            <strong>{item.value}</strong>
-                            <p>{item.detail}</p>
-                        </div>
-                        ))}
-                    </div>
-                    )}
+                  <div className="evidence-grid">
+                    {msg.evidence.map((item) => (
+                      <div
+                        className={`evidence-card ${item.tone}`}
+                        key={item.label}
+                      >
+                        <span>{item.label}</span>
+                        <strong>{item.value}</strong>
+                        <p>{item.detail}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
 
+            {loading && (
+              <div className="chat-msg assistant">
+                <p>답변을 생성하고 있습니다...</p>
+              </div>
+            )}
+
             <div className="suggested-questions">
-              <button>오늘 가장 위험한 품목은?</button>
-              <button>탄소 절감량은 어떻게 계산돼?</button>
-              <button>우유 추천 근거 알려줘</button>
+              {suggestedQuestions.map((question) => (
+                <button
+                  type="button"
+                  key={question}
+                  disabled={loading}
+                  onClick={() => handleSend(question)}
+                >
+                  {question}
+                </button>
+              ))}
             </div>
           </div>
 
           <div className="copilot-footer">
-            <input placeholder="발주 추천 이유를 물어보세요" />
-            <button>
+            <input
+              type="text"
+              value={input}
+              placeholder="발주 추천 이유를 물어보세요"
+              disabled={loading}
+              onChange={(event) => setInput(event.target.value)}
+              onKeyDown={handleKeyDown}
+            />
+
+            <button
+              type="button"
+              aria-label="메시지 전송"
+              disabled={loading || !input.trim()}
+              onClick={() => handleSend()}
+            >
               <Send size={17} />
             </button>
           </div>

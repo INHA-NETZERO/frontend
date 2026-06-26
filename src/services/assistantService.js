@@ -1,5 +1,4 @@
 import api from "./api";
-import { assistantData } from "../data/mockData";
 
 export const generateAssistantResponse = async (userMessage) => {
   try {
@@ -18,7 +17,11 @@ export const generateAssistantResponse = async (userMessage) => {
       tokens: response.data.data.tokens,
     };
   } catch (error) {
-    console.error("챗봇 응답 실패:", error);
+    console.error("챗봇 응답 실패:", {
+      status: error.response?.status,
+      response: error.response?.data,
+      message: error.message,
+    });
 
     return {
       role: "assistant",
@@ -26,7 +29,3 @@ export const generateAssistantResponse = async (userMessage) => {
     };
   }
 };
-
-export const getSuggestedQuestions = () => assistantData.suggestedQuestions;
-export const getSystemMessage = () => assistantData.systemMessage;
-export const getSampleResponse = (type) => assistantData.sampleResponses[type];
