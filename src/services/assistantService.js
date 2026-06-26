@@ -1,10 +1,23 @@
 import api from "./api";
 
+const getOneYearAgoDate = () => {
+  const date = new Date();
+  date.setFullYear(date.getFullYear() - 1);
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+};
+
+const CHAT_TARGET_DATE = getOneYearAgoDate();
+
 export const generateAssistantResponse = async (userMessage) => {
   try {
     const response = await api.post("/chat", {
       storeId: 1,
-      date: "2026-06-27",
+      date: CHAT_TARGET_DATE,
       question: userMessage,
     });
 

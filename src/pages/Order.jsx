@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import PageHeader from "../components/common/PageHeader";
-import { fetchOrderAnalysis } from "../services/orderService";
+import {
+  fetchOrderAnalysis,
+  ORDER_TARGET_DATE,
+} from "../services/orderService";
 
 function Order() {
   const [orderItems, setOrderItems] = useState([]);
@@ -12,7 +15,7 @@ function Order() {
 
   const loadOrders = async () => {
     try {
-      const data = await fetchOrderAnalysis(1);
+      const data = await fetchOrderAnalysis(1, ORDER_TARGET_DATE);
 
       setOrderItems(data.items);
     } catch (error) {
@@ -28,16 +31,16 @@ function Order() {
     <div className="page">
       <PageHeader
         title="발주"
-        description="현재 재고와 발주 예정량을 검토하고 최종 발주를 결정합니다."
+        description={`${ORDER_TARGET_DATE} 기준 재고와 발주 예정량을 검토합니다.`}
       />
 
       <section className="panel order-panel">
         <div className="panel-title">
           <div>
             <h3>품목별 발주 검토</h3>
-            <p>현재 재고와 기존 발주 예정량을 입력하면 추천값과 비교합니다.</p>
+            <p>조회 기준일의 재고와 기존 발주 예정량을 입력해 추천값과 비교합니다.</p>
           </div>
-          <span>현재 재고·발주 예정량은 직접 입력</span>
+          <span>기준일 재고·발주 예정량은 직접 입력</span>
         </div>
 
         <div className="order-table-wrap">
@@ -46,7 +49,7 @@ function Order() {
               <tr>
                 <th>품목</th>
                 <th>예상 수요</th>
-                <th>현재 재고</th>
+                <th>기준일 재고</th>
                 <th>기존 발주 예정량</th>
                 <th>추천 발주량</th>
                 <th>추가 필요량</th>

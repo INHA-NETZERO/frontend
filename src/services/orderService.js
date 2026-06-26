@@ -1,5 +1,18 @@
 import api from "./api";
 
+const getOneYearAgoDate = () => {
+  const date = new Date();
+  date.setFullYear(date.getFullYear() - 1);
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+};
+
+export const ORDER_TARGET_DATE = getOneYearAgoDate();
+
 /**
  * 발주 추천 목록 조회
  *
@@ -7,7 +20,7 @@ import api from "./api";
  */
 export const fetchOrderAnalysis = async (
   storeId = 1,
-  date = new Date().toISOString().split("T")[0]
+  date = ORDER_TARGET_DATE
 ) => {
   try {
     const response = await api.get("/recommendations", {
@@ -29,7 +42,7 @@ export const fetchOrderAnalysis = async (
  */
 export const getOrderItems = async (
   storeId = 1,
-  date = new Date().toISOString().split("T")[0]
+  date = ORDER_TARGET_DATE
 ) => {
   const data = await fetchOrderAnalysis(storeId, date);
   return data.items;

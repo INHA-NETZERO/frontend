@@ -1,53 +1,32 @@
+
 import { useEffect, useRef, useState } from "react";
-import { Bot, Send, X, Sparkles } from "lucide-react";
+import { Bot, Send, Sparkles, X } from "lucide-react";
 import { generateAssistantResponse } from "../../services/assistantService";
+
+const getOneYearAgoDate = () => {
+  const date = new Date();
+  date.setFullYear(date.getFullYear() - 1);
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+};
+
+const COPILOT_TARGET_DATE = getOneYearAgoDate();
 
 const initialMessages = [
   {
     role: "assistant",
-    text: "안녕하세요. 오늘의 발주 추천, 재고 위험, 탄소 절감 효과를 근거 데이터 기반으로 설명해드릴게요.",
-  },
-  {
-    role: "user",
-    text: "오늘 우유 발주량을 왜 줄이라고 했어?",
-  },
-  {
-    role: "assistant",
-    text: "우유는 현재 재고 12개, 예상 수요 18개, 기존 발주 예정량 20개를 기준으로 계산했을 때 과잉 가능성이 있습니다. 비 예보와 최근 동일 요일 판매 감소 패턴을 반영해 추천 발주량은 8개입니다.",
-    chips: ["수요예측", "발주추천", "탄소절감", "오늘 날씨"],
-    evidence: [
-      {
-        label: "수요예측",
-        value: "18개",
-        detail: "오늘 예상 수요",
-        tone: "blue",
-      },
-      {
-        label: "추천 발주",
-        value: "8개",
-        detail: "Calculation Engine",
-        tone: "green",
-      },
-      {
-        label: "탄소절감",
-        value: "2.1kg",
-        detail: "잠재 회피 배출량",
-        tone: "orange",
-      },
-      {
-        label: "날씨",
-        value: "비 70%",
-        detail: "방문 수요 감소",
-        tone: "purple",
-      },
-    ],
+    text: `안녕하세요. ${COPILOT_TARGET_DATE} 기준 발주 추천, 재고 위험, 폐기 및 탄소 절감 효과를 근거 데이터 기반으로 설명해드릴게요.`,
   },
 ];
 
 const suggestedQuestions = [
-  "오늘 가장 위험한 품목은?",
+  `${COPILOT_TARGET_DATE}에 가장 위험한 품목은?`,
   "탄소 절감량은 어떻게 계산돼?",
-  "우유 추천 근거 알려줘",
+  "우유 추천 발주량의 근거를 알려줘",
 ];
 
 function AICopilot() {
@@ -93,8 +72,21 @@ function AICopilot() {
         {
           role: "assistant",
           text:
-            assistantResponse.content ||
+            assistantResponse?.content ||
             "응답을 불러오지 못했습니다. 다시 시도해주세요.",
+          groundedOn: assistantResponse?.groundedOn,
+        },
+      ]);
+    } catch (error) {
+      console.error("챗봇 메시지 처리 실패:", {
+        message: error.message,
+      });
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          text: "챗봇 응답을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.",
         },
       ]);
     } finally {
@@ -103,7 +95,11 @@ function AICopilot() {
   };
 
   const handleKeyDown = (event) => {
-    if (event.key === "Enter" && !event.nativeEvent.isComposing) {
+    if (
+      event.key === "Enter" &&
+      !event.shiftKey &&
+      !event.nativeEvent.isComposing
+    ) {
       event.preventDefault();
       handleSend();
     }
@@ -114,6 +110,8 @@ function AICopilot() {
       <button
         type="button"
         className="copilot-fab"
+        aria-label="AI Copilot 열기"
+        aria-expanded={open}
         onClick={() => setOpen(true)}
       >
         <Sparkles size={20} />
@@ -121,7 +119,10 @@ function AICopilot() {
       </button>
 
       {open && (
-        <div className="copilot-panel">
+        <section
+          className="copilot-panel"
+          aria-label="AI Copilot 대화창"
+        >
           <div className="copilot-header">
             <div>
               <span className="copilot-icon">
@@ -130,7 +131,7 @@ function AICopilot() {
 
               <div>
                 <strong>AI Copilot</strong>
-                <p>근거 기반 발주 설명</p>
+                <p>{COPILOT_TARGET_DATE} 기준 근거 기반 발주 설명</p>
               </div>
             </div>
 
@@ -148,29 +149,33 @@ function AICopilot() {
             <span>설명: LLM</span>
           </div>
 
-          <div className="copilot-body" ref={bodyRef}>
-            {messages.map((msg, index) => (
+          <div
+            className="copilot-body"
+            ref={bodyRef}
+            aria-live="polite"
+          >
+            {messages.map((message, index) => (
               <div
-                key={`${msg.role}-${index}`}
+                key={`${message.role}-${index}`}
                 className={
-                  msg.role === "user"
+                  message.role === "user"
                     ? "chat-msg user"
                     : "chat-msg assistant"
                 }
               >
-                <p>{msg.text}</p>
+                <p>{message.text}</p>
 
-                {msg.chips && (
+                {message.chips?.length > 0 && (
                   <div className="chat-chips">
-                    {msg.chips.map((chip) => (
+                    {message.chips.map((chip) => (
                       <span key={chip}>{chip}</span>
                     ))}
                   </div>
                 )}
 
-                {msg.evidence && (
+                {message.evidence?.length > 0 && (
                   <div className="evidence-grid">
-                    {msg.evidence.map((item) => (
+                    {message.evidence.map((item) => (
                       <div
                         className={`evidence-card ${item.tone}`}
                         key={item.label}
@@ -209,7 +214,8 @@ function AICopilot() {
             <input
               type="text"
               value={input}
-              placeholder="발주 추천 이유를 물어보세요"
+              placeholder={`${COPILOT_TARGET_DATE} 발주 추천 이유를 물어보세요`}
+              aria-label="챗봇 질문 입력"
               disabled={loading}
               onChange={(event) => setInput(event.target.value)}
               onKeyDown={handleKeyDown}
@@ -226,12 +232,13 @@ function AICopilot() {
           </div>
 
           <p className="copilot-notice">
-            LLM은 결과를 설명하며 수치를 직접 계산하지 않습니다.
+            LLM은 계산 결과를 설명하며 수치를 직접 산정하지 않습니다.
           </p>
-        </div>
+        </section>
       )}
     </>
   );
 }
 
 export default AICopilot;
+
