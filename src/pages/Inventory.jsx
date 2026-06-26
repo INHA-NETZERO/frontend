@@ -120,14 +120,14 @@ function Inventory() {
     <div className="page">
       <PageHeader
         title="재고"
-        description="품목별 현재 재고와 실제 폐기 내역을 확인합니다."
+        description={`${TARGET_DATE} 기준 품목별 재고와 폐기 내역을 확인합니다.`}
       />
 
       <div className="stats-grid">
         <StatCard
           label="전체 관리 품목"
           value={`${inventoryItems.length}개`}
-          sub="백엔드 재고 조회 기준"
+          sub={`${TARGET_DATE} 재고 조회 기준`}
         />
         <StatCard
           label="재고 부족 품목"
@@ -138,19 +138,20 @@ function Inventory() {
         <StatCard
           label="폐기 발생 품목"
           value={`${wasteItemCount}개`}
-          sub="오늘 폐기 수량 기준"
+          sub={`${TARGET_DATE} 폐기 수량 기준`}
           tone="red"
         />
+
         <StatCard
-          label="오늘 실제 폐기량"
+          label="조회일 실제 폐기량"
           value={`${summary?.totalWasteKg ?? 0}kg`}
           sub={`탄소 ${summary?.totalWasteCarbonKg ?? 0}kgCO₂e`}
         />
       </div>
 
       <section className="inventory-note">
-        현재 재고는 백엔드 재고 원장 기준으로 조회됩니다. 재고 수정과 실제 폐기
-        저장은 별도 API가 필요합니다.
+        {TARGET_DATE} 기준 재고 원장 데이터를 조회하고 있습니다. 재고 수정과 폐기
+        내역 저장은 별도 API 연동이 필요합니다.
       </section>
 
       <section className="panel inventory-panel">
@@ -167,7 +168,7 @@ function Inventory() {
             <tr>
               <th>품목</th>
               <th>카테고리</th>
-              <th>현재 재고</th>
+              <th>기말 재고</th>
               <th>단위</th>
               <th>실판매</th>
               <th>폐기 수량</th>
@@ -214,10 +215,10 @@ function Inventory() {
 
       <section className="waste-input-panel">
         <div>
-          <h3>오늘 실제 폐기 입력</h3>
+          <h3>폐기 내역 입력</h3>
           <p>
-            실제로 버린 수량을 기록하면 다음 수요예측과 발주 추천 보정에
-            활용할 수 있습니다.
+            조회일에 발생한 품목별 폐기 수량과 사유를 입력합니다. 현재는 저장 API가
+            연결되지 않아 서버에는 반영되지 않습니다.
           </p>
         </div>
 
