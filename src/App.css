@@ -989,9 +989,6 @@ select {
   font-weight: 700;
 }
 
-.inventory-table tbody tr:nth-child(-n + 4) {
-  background: #fff7f7;
-}
 
 .expiry-badge {
   display: inline-flex;
@@ -1372,13 +1369,17 @@ select {
 
 .chart-panel .panel-title p {
   margin: 6px 0 0;
-  color: #94a3b8;
+  color: #64748b;
   font-size: 14px;
 }
 
 .chart-box {
   width: 100%;
   height: 260px;
+  margin-top: 18px;
+  background: rgba(255,255,255,0.65);
+  border-radius: 18px;
+  padding: 12px;
 }
 
 .cost-bars {
@@ -2263,4 +2264,292 @@ body {
 
 .stat-card.green strong {
   color: #111827 !important;
+}
+
+.report-filter-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 18px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 18px;
+  padding: 16px 18px;
+}
+
+.report-filter-row div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.report-filter-row strong {
+  font-size: 16px;
+  font-weight: 900;
+  color: #0f172a;
+}
+
+.report-filter-row span {
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+.report-filter-row select {
+  height: 44px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 0 14px;
+  background: white;
+  font-weight: 800;
+  color: #334155;
+}
+
+/* ===== Report KPI color themes ===== */
+
+.report-stats-grid .stat-card {
+  border-width: 1px;
+}
+
+.stat-card.waste {
+  background: #ecfdf5;
+  border-color: #bbf7d0;
+}
+
+.stat-card.waste .stat-icon {
+  background: #d1fae5;
+  color: #059669;
+}
+
+.stat-card.waste .stat-badge {
+  background: #bbf7d0;
+  color: #047857;
+}
+
+.stat-card.sky {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+
+.stat-card.sky .stat-icon {
+  background: #dbeafe;
+  color: #2563eb;
+}
+
+.stat-card.sky .stat-badge {
+  background: #bfdbfe;
+  color: #1d4ed8;
+}
+
+.stat-card.cost {
+  background: #fff7ed;
+  border-color: #fed7aa;
+}
+
+.stat-card.cost .stat-icon {
+  background: #ffedd5;
+  color: #ea580c;
+}
+
+.stat-card.cost .stat-badge {
+  background: #fed7aa;
+  color: #c2410c;
+}
+
+.stat-card.carbon {
+  background: #f0fdfa;
+  border-color: #99f6e4;
+}
+
+.stat-card.carbon .stat-icon {
+  background: #ccfbf1;
+  color: #0f766e;
+}
+
+.stat-card.carbon .stat-badge {
+  background: #99f6e4;
+  color: #0f766e;
+}
+
+/* 리포트 KPI 숫자는 전부 검정 */
+.report-stats-grid .stat-card strong {
+  color: #111827 !important;
+}
+
+/* 리포트 KPI 카드 hover */
+.report-stats-grid .stat-card {
+  transition: transform 0.22s ease, box-shadow 0.22s ease;
+}
+
+.report-stats-grid .stat-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.08);
+}
+
+/* ===== Sales UI refine 01: upload hero ===== */
+
+.sales-upload-hero {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 18px;
+  margin-bottom: 22px;
+}
+
+.sales-upload-left,
+.sales-requirement-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 28px;
+  padding: 28px;
+  box-shadow: 0 14px 38px rgba(15, 23, 42, 0.04);
+}
+
+.sales-upload-left {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: 18px;
+}
+
+.sales-upload-left .file-drop,
+.sales-upload-left .sales-upload-btn {
+  grid-column: 1 / -1;
+}
+
+.section-kicker {
+  display: inline-block;
+  margin-bottom: 8px;
+  color: #059669;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+}
+
+.sales-upload-left h3 {
+  margin: 0 0 10px;
+  font-size: 24px;
+  letter-spacing: -0.04em;
+  color: #0f172a;
+}
+
+.sales-upload-left p {
+  margin: 0;
+  color: #64748b;
+  line-height: 1.7;
+}
+
+.file-drop.upgraded {
+  height: 170px;
+  background:
+    linear-gradient(135deg, rgba(236, 253, 245, 0.95), rgba(240, 253, 250, 0.95));
+  border-color: #86efac;
+}
+
+.file-drop.upgraded:hover {
+  background: #ecfdf5;
+  border-color: #10b981;
+}
+
+.sales-upload-btn {
+  justify-self: start;
+  width: 180px;
+}
+
+.requirement-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.requirement-header strong {
+  font-size: 18px;
+  color: #0f172a;
+}
+
+.requirement-header span {
+  background: #ecfdf5;
+  color: #059669;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.required-list.upgraded {
+  margin: 0 0 16px;
+}
+
+.required-list.upgraded span {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+.required-list.upgraded span:nth-child(6),
+.required-list.upgraded span:nth-child(7),
+.required-list.upgraded span:nth-child(8) {
+  background: #ecfdf5;
+  border-color: #bbf7d0;
+  color: #047857;
+}
+
+.optional-box.upgraded {
+  border: 1px dashed #cbd5e1;
+  background: #f8fafc;
+}
+
+.boolean-guide {
+  margin-top: 14px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 18px;
+  padding: 16px;
+}
+
+.boolean-guide strong {
+  color: #92400e;
+}
+
+.boolean-guide p {
+  margin: 8px 0 12px;
+  color: #92400e;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.boolean-guide div {
+  display: flex;
+  gap: 8px;
+}
+
+.chart-panel {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 24px;
+  padding: 24px;
+  transition: all 0.25s ease;
+}
+
+.chart-panel:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+}
+
+.waste-panel {
+  background: #ECFDF5;
+  border-color: #BBF7D0;
+}
+
+.carbon-panel {
+  background: #EFF6FF;
+  border-color: #BFDBFE;
+}
+
+.cost-panel {
+  background: #FFF7ED;
+  border-color: #FED7AA;
+}
+
+.range-panel {
+  background: #F0FDFA;
+  border-color: #99F6E4;
 }

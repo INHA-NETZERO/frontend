@@ -75,58 +75,69 @@ function Sales() {
         </div>
       </section>
 
-      <section className="sales-grid">
-        <div className="upload-card">
-          <div className="upload-icon">
+      <section className="sales-upload-hero">
+        <div className="sales-upload-left">
+            <div className="upload-icon">
             <UploadCloud size={32} />
-          </div>
-          <h3>하루치 판매 데이터 업로드</h3>
-          <p>
-            CSV 파일을 업로드하면 날짜, 품목, 판매수량, 행사 여부, 신메뉴 여부,
-            재고소진 여부를 검토합니다.
-          </p>
+            </div>
 
-          <label className="file-drop">
+            <div>
+            <span className="section-kicker">Daily Sales CSV</span>
+            <h3>하루치 판매 데이터를 업로드하세요</h3>
+            <p>
+                날짜, 품목, 판매수량과 함께 행사·신메뉴·재고소진 여부를 검토합니다.
+                업로드 후 오류 행과 정상 행을 분리해 확인할 수 있습니다.
+            </p>
+            </div>
+
+            <label className="file-drop upgraded">
             <input type="file" accept=".csv" />
             <strong>CSV 파일을 선택하거나 끌어다 놓으세요</strong>
-            <span>지원 형식: .csv · 하루치 데이터만 업로드 가능</span>
-          </label>
+            <span>지원 형식: .csv · 하루치 판매 데이터만 업로드 가능</span>
+            </label>
 
-          <button className="confirm-order-btn">업로드 검토</button>
+            <button className="confirm-order-btn sales-upload-btn">업로드 검토</button>
         </div>
 
-        <div className="required-card">
-          <h3>CSV 필수 항목</h3>
+        <div className="sales-requirement-card">
+            <div className="requirement-header">
+            <strong>필수 컬럼</strong>
+            <span>8개</span>
+            </div>
 
-          <div className="required-list">
+            <div className="required-list upgraded">
             {[
-              "날짜",
-              "요일",
-              "품목",
-              "구분",
-              "판매수량",
-              "행사",
-              "신메뉴",
-              "재고소진",
+                "날짜",
+                "요일",
+                "품목",
+                "구분",
+                "판매수량",
+                "행사",
+                "신메뉴",
+                "재고소진",
             ].map((item) => (
-              <span key={item}>{item}</span>
+                <span key={item}>{item}</span>
             ))}
-          </div>
+            </div>
 
-          <div className="optional-box">
-            <strong>선택 항목</strong>
+            <div className="optional-box upgraded">
+            <strong>선택 컬럼</strong>
             <span>비고_시나리오</span>
-          </div>
+            </div>
 
-          <div className="format-note">
-            <strong>행사 / 신메뉴 / 재고소진 입력 방식</strong>
+            <div className="boolean-guide">
+            <strong>예/아니오 표시 기준</strong>
             <p>
-              화면에서는 <b>예/아니오</b>로 표시하며, 내부 저장 시에는
-              bool(true/false) 값으로 매핑됩니다.
+                화면에서는 예/아니오로 표시하고, 내부 저장 시 true/false 값으로
+                매핑합니다.
             </p>
-          </div>
+            <div>
+                <span className="bool-badge yes">예</span>
+                <span className="bool-badge no">아니오</span>
+            </div>
+            </div>
         </div>
-      </section>
+        </section>
 
       <section className="panel sales-preview-panel">
         <div className="panel-title">
