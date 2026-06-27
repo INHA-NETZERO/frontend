@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import PageHeader from "../components/common/PageHeader";
 import StatCard from "../components/common/StatCard";
-import api from "../services/api";
 
 const STORE_ID = 1;
 
@@ -94,9 +93,6 @@ const DEMO_DATA = {
   },
 };
 
-const getResponseData = (response) =>
-  response?.data?.data ?? response?.data ?? null;
-
 const formatNumber = (value, maximumFractionDigits = 1) =>
   Number(value ?? 0).toLocaleString("ko-KR", {
     maximumFractionDigits,
@@ -107,85 +103,13 @@ function Home() {
   const [carbon, setCarbon] = useState(null);
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [fallbackSections, setFallbackSections] = useState([]);
   const [aiModalOpen, setAiModalOpen] = useState(false);
 
   useEffect(() => {
-    let isMounted = true;
-
-    const loadHome = async () => {
-      setLoading(true);
-      setFallbackSections([]);
-
-      const requestConfig = {
-        params: {
-          storeId: STORE_ID,
-          targetDate: HOME_TARGET_DATE,
-        },
-      };
-
-      const [dashboardResult, carbonResult, summaryResult] =
-        await Promise.allSettled([
-          api.get("/dashboard/summary", requestConfig),
-          api.get("/carbon/today", requestConfig),
-          api.get("/carbon/savings/summary", requestConfig),
-        ]);
-
-      if (!isMounted) {
-        return;
-      }
-
-      const failedSections = [];
-
-      const resolveResult = (result, sectionName, fallbackData) => {
-        if (result.status === "fulfilled") {
-          const responseData = getResponseData(result.value);
-
-          if (responseData !== null && responseData !== undefined) {
-            return responseData;
-          }
-        }
-
-        failedSections.push(sectionName);
-
-        if (result.status === "rejected") {
-          const requestError = result.reason;
-
-          console.error(`[Home API 실패] ${sectionName}`, {
-            requestUrl: `${requestError?.config?.baseURL ?? ""}${
-              requestError?.config?.url ?? ""
-            }`,
-            status: requestError?.response?.status,
-            response: requestError?.response?.data,
-            message: requestError?.message,
-          });
-        }
-
-        return fallbackData;
-      };
-
-      setDashboard(
-        resolveResult(
-          dashboardResult,
-          "발주 요약",
-          DEMO_DATA.dashboard
-        )
-      );
-      setCarbon(
-        resolveResult(carbonResult, "탄소 절감", DEMO_DATA.carbon)
-      );
-      setSummary(
-        resolveResult(summaryResult, "누적 절감", DEMO_DATA.summary)
-      );
-      setFallbackSections(failedSections);
-      setLoading(false);
-    };
-
-    loadHome();
-
-    return () => {
-      isMounted = false;
-    };
+    setDashboard(DEMO_DATA.dashboard);
+    setCarbon(DEMO_DATA.carbon);
+    setSummary(DEMO_DATA.summary);
+    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -285,23 +209,6 @@ function Home() {
         title="홈"
         description={`${homeTargetDate} 기준 발주 상태와 폐기·탄소 절감 효과를 한눈에 확인하세요.`}
       />
-
-      {fallbackSections.length > 0 && (
-        <section
-          className="panel"
-          role="status"
-          style={{
-            marginBottom: "16px",
-            border: "1px solid #f0c36d",
-            background: "#fff9e8",
-          }}
-        >
-          <strong>일부 서버 데이터를 불러오지 못해 예시 데이터를 표시합니다.</strong>
-          <p style={{ margin: "6px 0 0" }}>
-            예시 적용 영역: {fallbackSections.join(", ")}
-          </p>
-        </section>
-      )}
 
       <section className="hero-card">
         <div>
