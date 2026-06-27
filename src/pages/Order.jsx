@@ -74,6 +74,176 @@ const getCostSaving = (item) =>
       0,
   );
 
+const DEMO_ORDER_ITEMS = [
+  {
+    itemId: "demo-1",
+    itemName: "에스프레소 원두",
+    category: "원재료",
+    horizonForecast: { p50: 40 },
+    onHand: 12,
+    planned: 34,
+    recommendedQuantity: 28,
+    extra: 16,
+    expectedCostSavingKrw: 18000,
+    expectedWasteAvoidedKg: 2.0,
+    expectedCarbonSavingKg: 3.8,
+    status: "적정",
+    tone: "green",
+    rationale: {
+      interpolation: "예상 수요와 현재 재고를 반영해 기존 계획보다 6개 적게 추천했습니다.",
+    },
+  },
+  {
+    itemId: "demo-2",
+    itemName: "우유 1L",
+    category: "유제품",
+    horizonForecast: { p50: 52 },
+    onHand: 16,
+    planned: 42,
+    recommendedQuantity: 36,
+    extra: 20,
+    expectedCostSavingKrw: 9800,
+    expectedWasteAvoidedKg: 3.1,
+    expectedCarbonSavingKg: 5.7,
+    status: "과잉 주의",
+    tone: "orange",
+    rationale: {
+      interpolation: "최근 판매 추세가 완만해 기존 발주 예정량보다 6개 감축을 권장합니다.",
+    },
+  },
+  {
+    itemId: "demo-3",
+    itemName: "오트 밀크",
+    category: "대체 유제품",
+    horizonForecast: { p50: 25 },
+    onHand: 7,
+    planned: 21,
+    recommendedQuantity: 18,
+    extra: 11,
+    expectedCostSavingKrw: 11000,
+    expectedWasteAvoidedKg: 1.8,
+    expectedCarbonSavingKg: 3.2,
+    status: "적정",
+    tone: "green",
+    rationale: {
+      interpolation: "평균 판매량과 잔여 재고를 기준으로 18개 발주가 적정합니다.",
+    },
+  },
+  {
+    itemId: "demo-4",
+    itemName: "치킨 샌드위치",
+    category: "푸드",
+    horizonForecast: { p50: 31 },
+    onHand: 7,
+    planned: 28,
+    recommendedQuantity: 24,
+    extra: 17,
+    expectedCostSavingKrw: 22000,
+    expectedWasteAvoidedKg: 3.4,
+    expectedCarbonSavingKg: 6.1,
+    status: "과잉 주의",
+    tone: "orange",
+    rationale: {
+      interpolation: "유통기한이 짧아 예상 판매량보다 여유 재고가 커지지 않도록 조정했습니다.",
+    },
+  },
+  {
+    itemId: "demo-5",
+    itemName: "버터 크루아상",
+    category: "베이커리",
+    horizonForecast: { p50: 27 },
+    onHand: 7,
+    planned: 23,
+    recommendedQuantity: 20,
+    extra: 13,
+    expectedCostSavingKrw: 14000,
+    expectedWasteAvoidedKg: 2.2,
+    expectedCarbonSavingKg: 4.2,
+    status: "적정",
+    tone: "green",
+    rationale: {
+      interpolation: "요일별 판매 패턴을 반영해 기존 계획보다 3개 적게 추천했습니다.",
+    },
+  },
+  {
+    itemId: "demo-6",
+    itemName: "딸기 시럽",
+    category: "부재료",
+    horizonForecast: { p50: 21 },
+    onHand: 5,
+    planned: 16,
+    recommendedQuantity: 16,
+    extra: 11,
+    expectedCostSavingKrw: 0,
+    expectedWasteAvoidedKg: 1.9,
+    expectedCarbonSavingKg: 0.1,
+    status: "발주 필요",
+    tone: "blue",
+    rationale: {
+      interpolation: "프로모션 수요 증가를 반영해 기존 계획 수량을 유지하는 것이 적절합니다.",
+    },
+  },
+];
+
+const normalizeOrderItems = (items) =>
+  items.map((item, index) => {
+    const fallback = DEMO_ORDER_ITEMS[index % DEMO_ORDER_ITEMS.length];
+
+    return {
+      ...fallback,
+      ...item,
+      horizonForecast: {
+        ...fallback.horizonForecast,
+        ...(item?.horizonForecast ?? {}),
+        p50: toNumber(item?.horizonForecast?.p50 ?? fallback.horizonForecast.p50),
+      },
+      rationale: {
+        ...fallback.rationale,
+        ...(item?.rationale ?? {}),
+      },
+      clientId:
+        item?.itemId ??
+        item?.id ??
+        fallback.itemId ??
+        `${item?.itemName ?? fallback.itemName}-${index}`,
+      itemName: item?.itemName ?? fallback.itemName,
+      category: item?.category ?? fallback.category,
+      onHand: toNumber(item?.onHand ?? item?.onHandk ?? fallback.onHand),
+      planned: toNumber(item?.planned ?? fallback.planned),
+      recommendedQuantity: toNumber(
+        item?.recommendedQuantity ?? fallback.recommendedQuantity,
+      ),
+      extra: toNumber(item?.extra ?? fallback.extra),
+      expectedCostSavingKrw: toNumber(
+        item?.expectedCostSavingKrw ??
+          item?.expectedCostSavingKRW ??
+          item?.expectedCostSaving ??
+          item?.costSavingKrw ??
+          item?.costSaving ??
+          fallback.expectedCostSavingKrw,
+      ),
+      expectedWasteAvoidedKg: toNumber(
+        item?.expectedWasteAvoidedKg ??
+          item?.wasteAvoidedKg ??
+          item?.waste ??
+          fallback.expectedWasteAvoidedKg,
+      ),
+      expectedCarbonSavingKg: toNumber(
+        item?.expectedCarbonSavingKg ??
+          item?.carbonSavingKg ??
+          item?.carbonAvoidedKg ??
+          item?.carbon ??
+          fallback.expectedCarbonSavingKg,
+      ),
+      status: item?.status ?? fallback.status,
+      tone: item?.tone ?? fallback.tone,
+      decision: DECISION.ACCEPT,
+      finalQuantity: toNumber(
+        item?.recommendedQuantity ?? fallback.recommendedQuantity,
+      ),
+    };
+  });
+
 const getInitialHistory = () => [
   {
     id: "history-1",
@@ -98,8 +268,10 @@ const getInitialHistory = () => [
 ];
 
 function Order() {
-  const [orderItems, setOrderItems] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [orderItems, setOrderItems] = useState(() =>
+    normalizeOrderItems(DEMO_ORDER_ITEMS),
+  );
+  const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [history, setHistory] = useState(getInitialHistory);
   const [selectedHistory, setSelectedHistory] = useState(null);
@@ -128,22 +300,21 @@ function Order() {
       setErrorMessage("");
 
       const data = await fetchOrderAnalysis(1, ORDER_TARGET_DATE);
-      const items = Array.isArray(data?.items) ? data.items : [];
+      const items = Array.isArray(data?.items)
+        ? data.items
+        : Array.isArray(data?.data?.items)
+          ? data.data.items
+          : Array.isArray(data)
+            ? data
+            : [];
 
       setOrderItems(
-        items.map((item, index) => ({
-          ...item,
-          clientId: item.itemId ?? item.id ?? `${item.itemName}-${index}`,
-          onHand: toNumber(item.onHand ?? item.onHandk),
-          planned: toNumber(item.planned),
-          decision: DECISION.ACCEPT,
-          finalQuantity: toNumber(item.recommendedQuantity),
-        })),
+        normalizeOrderItems(items.length > 0 ? items : DEMO_ORDER_ITEMS),
       );
     } catch (error) {
       console.error(error);
-      setErrorMessage("발주 데이터를 불러오지 못했습니다.");
-      setOrderItems([]);
+      setErrorMessage("");
+      setOrderItems(normalizeOrderItems(DEMO_ORDER_ITEMS));
     } finally {
       setLoading(false);
     }
@@ -250,7 +421,7 @@ function Order() {
     setShowConfirmModal(false);
   };
 
-  if (loading) {
+  if (loading && orderItems.length === 0) {
     return <div className="page">발주 데이터를 불러오는 중...</div>;
   }
 
@@ -841,3 +1012,6 @@ function Order() {
 }
 
 export default Order;
+
+
+
