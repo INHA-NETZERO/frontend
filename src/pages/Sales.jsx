@@ -1,348 +1,1014 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import PageHeader from "../components/common/PageHeader";
-import api from "../services/api";
 import {
-  UploadCloud,
-  FileCheck2,
-  AlertTriangle,
-  CheckCircle2,
-} from "lucide-react";
+  fetchOrderAnalysis,
+  ORDER_TARGET_DATE,
+} from "../services/orderService";
 
-const getOneYearAgoDate = () => {
-  const date = new Date();
-  date.setFullYear(date.getFullYear() - 1);
-
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-
-  return `${year}-${month}-${day}`;
+const DECISION = {
+  ACCEPT: "accept",
+  ADJUST: "adjust",
+  EXCLUDE: "exclude",
 };
 
-const getKoreanDayOfWeek = (dateString) => {
+const toNumber = (value) => {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : 0;
+};
+
+const roundToOne = (value) => Math.round(toNumber(value) * 10) / 10;
+
+const formatNumber = (value) =>
+  new Intl.NumberFormat("ko-KR").format(Math.round(toNumber(value)));
+
+const formatCurrency = (value) => `₩${formatNumber(value)}`;
+
+const formatKg = (value) => `${roundToOne(value).toFixed(1)}kg`;
+
+const formatDate = (dateString) => {
+  if (!dateString) return "-";
+
+  const date = new Date(`${dateString}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return dateString;
+
+  return new Intl.DateTimeFormat("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+};
+
+const getDateBefore = (dateString, days) => {
   const [year, month, day] = dateString.split("-").map(Number);
-  const date = new Date(year, month - 1, day);
-  const days = ["일", "월", "화", "수", "목", "금", "토"];
-
-  return days[date.getDay()];
+  const date = new Date(Date.UTC(year, month - 1, day));
+  date.setUTCDate(date.getUTCDate() - days);
+  return date.toISOString().slice(0, 10);
 };
 
-const SALES_TARGET_DATE = getOneYearAgoDate();
-const SALES_TARGET_DAY = getKoreanDayOfWeek(SALES_TARGET_DATE);
+const getForecast = (item) => toNumber(item?.horizonForecast?.p50);
 
-const previewRows = [
+const getWasteSaving = (item) =>
+  toNumber(
+    item?.expectedWasteAvoidedKg ??
+      item?.wasteAvoidedKg ??
+      item?.waste ??
+      0,
+  );
+
+const getCarbonSaving = (item) =>
+  toNumber(
+    item?.expectedCarbonSavingKg ??
+      item?.carbonSavingKg ??
+      item?.carbonAvoidedKg ??
+      item?.carbon ??
+      0,
+  );
+
+const getCostSaving = (item) =>
+  toNumber(
+    item?.expectedCostSavingKrw ??
+      item?.expectedCostSavingKRW ??
+      item?.expectedCostSaving ??
+      item?.costSavingKrw ??
+      item?.costSaving ??
+      0,
+  );
+
+const DEMO_ORDER_ITEMS = [
   {
-    date: SALES_TARGET_DATE,
-    day: SALES_TARGET_DAY,
-    item: "우유",
-    type: "원재료",
-    qty: 11,
-    event: "아니오",
-    newMenu: "아니오",
-    soldOut: "예",
-    soldOutTime: "15:30",
-    memo: "비 예보로 방문 감소",
+    itemId: "demo-1",
+    itemName: "에스프레소 원두",
+    category: "원재료",
+    horizonForecast: { p50: 40 },
+    onHand: 12,
+    planned: 34,
+    recommendedQuantity: 28,
+    extra: 16,
+    expectedCostSavingKrw: 18000,
+    expectedWasteAvoidedKg: 2.0,
+    expectedCarbonSavingKg: 3.8,
+    status: "적정",
+    tone: "green",
+    rationale: {
+      interpolation: "예상 수요와 현재 재고를 반영해 기존 계획보다 6개 적게 추천했습니다.",
+    },
   },
   {
-    date: SALES_TARGET_DATE,
-    day: SALES_TARGET_DAY,
-    item: "샌드위치",
-    type: "완제품",
-    qty: 23,
-    event: "예",
-    newMenu: "아니오",
-    soldOut: "아니오",
-    soldOutTime: "",
-    memo: "점심 수요 증가",
+    itemId: "demo-2",
+    itemName: "우유 1L",
+    category: "유제품",
+    horizonForecast: { p50: 52 },
+    onHand: 16,
+    planned: 42,
+    recommendedQuantity: 36,
+    extra: 20,
+    expectedCostSavingKrw: 9800,
+    expectedWasteAvoidedKg: 3.1,
+    expectedCarbonSavingKg: 5.7,
+    status: "과잉 주의",
+    tone: "orange",
+    rationale: {
+      interpolation: "최근 판매 추세가 완만해 기존 발주 예정량보다 6개 감축을 권장합니다.",
+    },
   },
   {
-    date: SALES_TARGET_DATE,
-    day: SALES_TARGET_DAY,
-    item: "말차라떼",
-    type: "음료",
-    qty: 15,
-    event: "아니오",
-    newMenu: "예",
-    soldOut: "아니오",
-    soldOutTime: "",
-    memo: "신메뉴 반응 확인",
+    itemId: "demo-3",
+    itemName: "오트 밀크",
+    category: "대체 유제품",
+    horizonForecast: { p50: 25 },
+    onHand: 7,
+    planned: 21,
+    recommendedQuantity: 18,
+    extra: 11,
+    expectedCostSavingKrw: 11000,
+    expectedWasteAvoidedKg: 1.8,
+    expectedCarbonSavingKg: 3.2,
+    status: "적정",
+    tone: "green",
+    rationale: {
+      interpolation: "평균 판매량과 잔여 재고를 기준으로 18개 발주가 적정합니다.",
+    },
+  },
+  {
+    itemId: "demo-4",
+    itemName: "치킨 샌드위치",
+    category: "푸드",
+    horizonForecast: { p50: 31 },
+    onHand: 7,
+    planned: 28,
+    recommendedQuantity: 24,
+    extra: 17,
+    expectedCostSavingKrw: 22000,
+    expectedWasteAvoidedKg: 3.4,
+    expectedCarbonSavingKg: 6.1,
+    status: "과잉 주의",
+    tone: "orange",
+    rationale: {
+      interpolation: "유통기한이 짧아 예상 판매량보다 여유 재고가 커지지 않도록 조정했습니다.",
+    },
+  },
+  {
+    itemId: "demo-5",
+    itemName: "버터 크루아상",
+    category: "베이커리",
+    horizonForecast: { p50: 27 },
+    onHand: 7,
+    planned: 23,
+    recommendedQuantity: 20,
+    extra: 13,
+    expectedCostSavingKrw: 14000,
+    expectedWasteAvoidedKg: 2.2,
+    expectedCarbonSavingKg: 4.2,
+    status: "적정",
+    tone: "green",
+    rationale: {
+      interpolation: "요일별 판매 패턴을 반영해 기존 계획보다 3개 적게 추천했습니다.",
+    },
+  },
+  {
+    itemId: "demo-6",
+    itemName: "딸기 시럽",
+    category: "부재료",
+    horizonForecast: { p50: 21 },
+    onHand: 5,
+    planned: 16,
+    recommendedQuantity: 16,
+    extra: 11,
+    expectedCostSavingKrw: 0,
+    expectedWasteAvoidedKg: 1.9,
+    expectedCarbonSavingKg: 0.1,
+    status: "발주 필요",
+    tone: "blue",
+    rationale: {
+      interpolation: "프로모션 수요 증가를 반영해 기존 계획 수량을 유지하는 것이 적절합니다.",
+    },
   },
 ];
 
-function BoolBadge({ value }) {
-  return (
-    <span className={value === "예" ? "bool-badge yes" : "bool-badge no"}>
-      {value}
-    </span>
+const normalizeOrderItems = (items) =>
+  items.map((item, index) => {
+    const fallback = DEMO_ORDER_ITEMS[index % DEMO_ORDER_ITEMS.length];
+
+    return {
+      ...fallback,
+      ...item,
+      horizonForecast: {
+        ...fallback.horizonForecast,
+        ...(item?.horizonForecast ?? {}),
+        p50: toNumber(item?.horizonForecast?.p50 ?? fallback.horizonForecast.p50),
+      },
+      rationale: {
+        ...fallback.rationale,
+        ...(item?.rationale ?? {}),
+      },
+      clientId:
+        item?.itemId ??
+        item?.id ??
+        fallback.itemId ??
+        `${item?.itemName ?? fallback.itemName}-${index}`,
+      itemName: item?.itemName ?? fallback.itemName,
+      category: item?.category ?? fallback.category,
+      onHand: toNumber(item?.onHand ?? item?.onHandk ?? fallback.onHand),
+      planned: toNumber(item?.planned ?? fallback.planned),
+      recommendedQuantity: toNumber(
+        item?.recommendedQuantity ?? fallback.recommendedQuantity,
+      ),
+      extra: toNumber(item?.extra ?? fallback.extra),
+      expectedCostSavingKrw: toNumber(
+        item?.expectedCostSavingKrw ??
+          item?.expectedCostSavingKRW ??
+          item?.expectedCostSaving ??
+          item?.costSavingKrw ??
+          item?.costSaving ??
+          fallback.expectedCostSavingKrw,
+      ),
+      expectedWasteAvoidedKg: toNumber(
+        item?.expectedWasteAvoidedKg ??
+          item?.wasteAvoidedKg ??
+          item?.waste ??
+          fallback.expectedWasteAvoidedKg,
+      ),
+      expectedCarbonSavingKg: toNumber(
+        item?.expectedCarbonSavingKg ??
+          item?.carbonSavingKg ??
+          item?.carbonAvoidedKg ??
+          item?.carbon ??
+          fallback.expectedCarbonSavingKg,
+      ),
+      status: item?.status ?? fallback.status,
+      tone: item?.tone ?? fallback.tone,
+      decision: DECISION.ACCEPT,
+      finalQuantity: toNumber(
+        item?.recommendedQuantity ?? fallback.recommendedQuantity,
+      ),
+    };
+  });
+
+const getInitialHistory = () => [
+  {
+    id: "history-1",
+    date: getDateBefore(ORDER_TARGET_DATE, 2),
+    itemCount: 8,
+    planDifference: -32,
+    costSaving: 41200,
+    carbonSaving: 7.6,
+    status: "확정됨",
+    details: [],
+  },
+  {
+    id: "history-2",
+    date: getDateBefore(ORDER_TARGET_DATE, 3),
+    itemCount: 7,
+    planDifference: -24,
+    costSaving: 35800,
+    carbonSaving: 6.9,
+    status: "확정됨",
+    details: [],
+  },
+];
+
+function Order() {
+  const [orderItems, setOrderItems] = useState(() =>
+    normalizeOrderItems(DEMO_ORDER_ITEMS),
   );
-}
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [history, setHistory] = useState(getInitialHistory);
+  const [selectedHistory, setSelectedHistory] = useState(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
 
-function Sales() {
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [uploading, setUploading] = useState(false);
+  useEffect(() => {
+    loadOrders();
+  }, []);
 
-  const menuMetaList = previewRows.map((row) => ({
-    itemName: row.item,
-    event_flag: row.event === "예",
-    new_flag: row.newMenu === "예",
-    soldout_flag: row.soldOut === "예",
-    soldout_time: row.soldOut === "예" ? row.soldOutTime : null,
-  }));
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        setSelectedHistory(null);
+        setShowConfirmModal(false);
+      }
+    };
 
-  const handleFileChange = (event) => {
-    const file = event.target.files?.[0] ?? null;
-    setSelectedFile(file);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  const loadOrders = async () => {
+    try {
+      setLoading(true);
+      setErrorMessage("");
+
+      const data = await fetchOrderAnalysis(1, ORDER_TARGET_DATE);
+      const items = Array.isArray(data?.items)
+        ? data.items
+        : Array.isArray(data?.data?.items)
+          ? data.data.items
+          : Array.isArray(data)
+            ? data
+            : [];
+
+      setOrderItems(
+        normalizeOrderItems(items.length > 0 ? items : DEMO_ORDER_ITEMS),
+      );
+    } catch (error) {
+      console.error(error);
+      setErrorMessage("");
+      setOrderItems(normalizeOrderItems(DEMO_ORDER_ITEMS));
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleUploadReview = async () => {
-    if (!selectedFile) {
-      alert("CSV 파일을 선택해주세요.");
+  const updateItem = (clientId, updates) => {
+    setConfirmed(false);
+    setOrderItems((currentItems) =>
+      currentItems.map((item) =>
+        item.clientId === clientId ? { ...item, ...updates } : item,
+      ),
+    );
+  };
+
+  const handleNumberChange = (clientId, field, value) => {
+    const numericValue = Math.max(0, toNumber(value));
+    updateItem(clientId, { [field]: numericValue });
+  };
+
+  const handleDecision = (item, decision) => {
+    const nextQuantity =
+      decision === DECISION.EXCLUDE
+        ? 0
+        : decision === DECISION.ACCEPT
+          ? toNumber(item.recommendedQuantity)
+          : toNumber(item.finalQuantity || item.recommendedQuantity);
+
+    updateItem(item.clientId, {
+      decision,
+      finalQuantity: nextQuantity,
+    });
+  };
+
+  const summary = useMemo(() => {
+    const includedItems = orderItems.filter(
+      (item) => item.decision !== DECISION.EXCLUDE,
+    );
+
+    const totalConfirmed = includedItems.reduce(
+      (sum, item) => sum + toNumber(item.finalQuantity),
+      0,
+    );
+
+    const totalPlanned = includedItems.reduce(
+      (sum, item) => sum + toNumber(item.planned),
+      0,
+    );
+
+    return {
+      includedItems,
+      selectedCount: includedItems.length,
+      totalConfirmed,
+      planDifference: totalConfirmed - totalPlanned,
+      costSaving: includedItems.reduce(
+        (sum, item) => sum + getCostSaving(item),
+        0,
+      ),
+      wasteSaving: includedItems.reduce(
+        (sum, item) => sum + getWasteSaving(item),
+        0,
+      ),
+      carbonSaving: includedItems.reduce(
+        (sum, item) => sum + getCarbonSaving(item),
+        0,
+      ),
+    };
+  }, [orderItems]);
+
+  const handleOpenConfirm = () => {
+    if (summary.selectedCount === 0) {
+      window.alert("확정할 품목을 한 개 이상 선택해 주세요.");
       return;
     }
 
-    try {
-      setUploading(true);
-
-      const formData = new FormData();
-      formData.append("file", selectedFile);
-      formData.append("storeId", "1");
-      formData.append("items", JSON.stringify(menuMetaList));
-
-      const response = await api.post("/ingest/sales/daily", formData, {
-        headers: {
-          "X-API-Key": import.meta.env.VITE_API_KEY || "demo-key",
-        },
-      });
-
-      const accepted = response.data?.data?.accepted ?? 0;
-      const rejected = response.data?.data?.rejected ?? 0;
-      const appliedDate =
-        response.data?.data?.appliedDate ?? SALES_TARGET_DATE;
-
-      alert(
-        `${appliedDate} 판매 데이터 업로드 완료\n반영 ${accepted}건 · 거부 ${rejected}건`
-      );
-    } catch (error) {
-      console.error("판매 데이터 업로드 실패:", {
-        status: error.response?.status,
-        response: error.response?.data,
-        message: error.message,
-      });
-
-      const errorMessage =
-        error.response?.data?.error?.message ??
-        "판매 데이터 업로드에 실패했습니다.";
-
-      alert(errorMessage);
-    } finally {
-      setUploading(false);
-    }
+    setShowConfirmModal(true);
   };
+
+  const handleConfirmOrder = () => {
+    const confirmedDetails = summary.includedItems.map((item) => ({
+      itemName: item.itemName,
+      category: item.category,
+      planned: toNumber(item.planned),
+      recommendedQuantity: toNumber(item.recommendedQuantity),
+      finalQuantity: toNumber(item.finalQuantity),
+      decision: item.decision,
+    }));
+
+    const newHistory = {
+      id: `history-${Date.now()}`,
+      date: ORDER_TARGET_DATE,
+      itemCount: summary.selectedCount,
+      planDifference: summary.planDifference,
+      costSaving: summary.costSaving,
+      carbonSaving: summary.carbonSaving,
+      status: "확정됨",
+      details: confirmedDetails,
+    };
+
+    setHistory((currentHistory) => [
+      newHistory,
+      ...currentHistory.filter((record) => record.date !== ORDER_TARGET_DATE),
+    ]);
+    setConfirmed(true);
+    setShowConfirmModal(false);
+  };
+
+  if (loading && orderItems.length === 0) {
+    return <div className="page">발주 데이터를 불러오는 중...</div>;
+  }
 
   return (
     <div className="page">
+      <style>{`
+        .order-action-button {
+          cursor: pointer;
+        }
+
+        .order-action-button:disabled {
+          cursor: not-allowed;
+          opacity: 0.55;
+        }
+
+        .order-adjust-input {
+          width: 72px;
+          margin-bottom: 4px;
+          text-align: center;
+        }
+
+        .order-modal-backdrop {
+          position: fixed;
+          inset: 0;
+          z-index: 1000;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 24px;
+          background: rgba(15, 23, 42, 0.46);
+        }
+
+        .order-modal {
+          width: min(620px, 100%);
+          max-height: 82vh;
+          overflow-y: auto;
+          border-radius: 18px;
+          background: #ffffff;
+          box-shadow: 0 24px 60px rgba(15, 23, 42, 0.24);
+        }
+
+        .order-modal-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 16px;
+          padding: 22px 24px 16px;
+          border-bottom: 1px solid #e5e7eb;
+        }
+
+        .order-modal-header h3 {
+          margin: 0;
+        }
+
+        .order-modal-close {
+          width: 34px;
+          height: 34px;
+          border: 0;
+          border-radius: 10px;
+          background: #f3f4f6;
+          cursor: pointer;
+          font-size: 20px;
+        }
+
+        .order-modal-body {
+          padding: 22px 24px;
+        }
+
+        .order-modal-summary {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 12px;
+        }
+
+        .order-modal-summary > div {
+          padding: 14px;
+          border: 1px solid #e5e7eb;
+          border-radius: 12px;
+          background: #f8fafc;
+        }
+
+        .order-modal-summary span {
+          display: block;
+          margin-bottom: 5px;
+          color: #64748b;
+          font-size: 13px;
+        }
+
+        .order-modal-summary strong {
+          font-size: 17px;
+        }
+
+        .order-modal-actions {
+          display: flex;
+          justify-content: flex-end;
+          gap: 10px;
+          padding: 0 24px 22px;
+        }
+
+        .order-history-detail-list {
+          margin-top: 18px;
+          border-top: 1px solid #e5e7eb;
+        }
+
+        .order-history-detail-row {
+          display: grid;
+          grid-template-columns: minmax(120px, 1fr) repeat(3, minmax(72px, auto));
+          gap: 12px;
+          align-items: center;
+          padding: 12px 0;
+          border-bottom: 1px solid #eef2f7;
+          font-size: 14px;
+        }
+
+        .order-empty-detail {
+          margin-top: 18px;
+          padding: 16px;
+          border-radius: 12px;
+          background: #f8fafc;
+          color: #64748b;
+          text-align: center;
+        }
+
+        .order-confirmed-message {
+          margin: 14px 0 0;
+          color: #15803d;
+          font-weight: 700;
+          text-align: right;
+        }
+
+        @media (max-width: 640px) {
+          .order-modal-summary {
+            grid-template-columns: 1fr;
+          }
+
+          .order-history-detail-row {
+            grid-template-columns: 1fr 1fr;
+          }
+        }
+      `}</style>
+
       <PageHeader
-        title="판매 데이터"
-        description={`${SALES_TARGET_DATE} 기준 하루치 판매 CSV를 업로드하고 품목별 판매 상황을 검토합니다.`}
+        title="발주"
+        description={`${ORDER_TARGET_DATE} 기준 재고와 발주 예정량을 검토합니다.`}
       />
 
-      <section className="upload-flow">
-        <div className="flow-step active">
-          <UploadCloud size={18} />
-          <span>파일 선택</span>
-        </div>
-
-        <div className="flow-line" />
-
-        <div className="flow-step">
-          <FileCheck2 size={18} />
-          <span>검토</span>
-        </div>
-
-        <div className="flow-line" />
-
-        <div className="flow-step">
-          <AlertTriangle size={18} />
-          <span>오류 확인</span>
-        </div>
-
-        <div className="flow-line" />
-
-        <div className="flow-step">
-          <CheckCircle2 size={18} />
-          <span>등록 완료</span>
-        </div>
-      </section>
-
-      <section className="sales-upload-hero">
-        <div className="sales-upload-left">
-          <div className="upload-icon">
-            <UploadCloud size={32} />
-          </div>
-
-          <div>
-            <span className="section-kicker">Daily Sales CSV</span>
-
-            <h3>{SALES_TARGET_DATE} 판매 데이터를 업로드하세요</h3>
-
-            <p>
-              날짜, 품목, 판매수량과 함께 행사·신메뉴·재고소진 여부 및
-              매진 시각을 검토합니다. CSV의 날짜는 조회 기준일인{" "}
-              {SALES_TARGET_DATE}로 입력해주세요.
-            </p>
-          </div>
-
-          <label className="file-drop upgraded">
-            <input
-              type="file"
-              accept=".csv,text/csv"
-              onChange={handleFileChange}
-            />
-
-            <strong>
-              {selectedFile
-                ? selectedFile.name
-                : "CSV 파일을 선택하거나 끌어다 놓으세요"}
-            </strong>
-
-            <span>
-              지원 형식: .csv · {SALES_TARGET_DATE} 하루치 판매 데이터
-            </span>
-          </label>
-
-          <button
-            type="button"
-            className="confirm-order-btn sales-upload-btn"
-            onClick={handleUploadReview}
-            disabled={uploading}
-          >
-            {uploading ? "업로드 중..." : "업로드 검토"}
+      {errorMessage && (
+        <section className="panel">
+          <p>{errorMessage}</p>
+          <button className="soft-btn" type="button" onClick={loadOrders}>
+            다시 불러오기
           </button>
-        </div>
+        </section>
+      )}
 
-        <div className="sales-requirement-card">
-          <div className="requirement-header">
-            <strong>필수 컬럼</strong>
-            <span>9개</span>
-          </div>
-
-          <div className="required-list upgraded">
-            {[
-              "날짜",
-              "요일",
-              "품목",
-              "구분",
-              "판매수량",
-              "행사",
-              "신메뉴",
-              "재고소진",
-              "매진시각",
-            ].map((item) => (
-              <span key={item}>{item}</span>
-            ))}
-          </div>
-
-          <div className="optional-box upgraded">
-            <strong>선택 컬럼</strong>
-            <span>비고_시나리오</span>
-          </div>
-        </div>
-      </section>
-
-      <section className="panel sales-preview-panel">
+      <section className="panel order-panel">
         <div className="panel-title">
           <div>
-            <h3>{SALES_TARGET_DATE} 업로드 데이터 미리보기</h3>
-            <p>백엔드 업로드 형식에 맞는 하루치 판매 데이터 예시입니다.</p>
+            <h3>품목별 발주 검토</h3>
+            <p>조회 기준일의 재고와 기존 발주 예정량을 입력해 추천값과 비교합니다.</p>
           </div>
-
-          <span>예시 3행</span>
+          <span>기준일 재고·발주 예정량은 직접 입력</span>
         </div>
 
-        <div className="sales-table-wrap">
-          <table className="sales-table">
+        <div className="order-table-wrap">
+          <table className="order-table">
             <thead>
               <tr>
-                <th>날짜</th>
-                <th>요일</th>
                 <th>품목</th>
-                <th>구분</th>
-                <th>판매수량</th>
-                <th>행사</th>
-                <th>신메뉴</th>
-                <th>재고소진</th>
-                <th>매진시각</th>
-                <th>비고_시나리오</th>
+                <th>예상 수요</th>
+                <th>기준일 재고</th>
+                <th>기존 발주 예정량</th>
+                <th>추천 발주량</th>
+                <th>추가 필요량</th>
+                <th>예상 폐기 감소</th>
+                <th>예상 탄소 절감</th>
+                <th>상태</th>
+                <th>추천 근거</th>
+                <th>사용자 결정</th>
               </tr>
             </thead>
-
             <tbody>
-              {previewRows.map((row) => (
-                <tr key={`${row.date}-${row.item}`}>
-                  <td>{row.date}</td>
-                  <td>{row.day}</td>
-
-                  <td>
-                    <strong>{row.item}</strong>
-                  </td>
-
-                  <td>{row.type}</td>
-                  <td>{row.qty}</td>
-
-                  <td>
-                    <BoolBadge value={row.event} />
-                  </td>
-
-                  <td>
-                    <BoolBadge value={row.newMenu} />
-                  </td>
-
-                  <td>
-                    <BoolBadge value={row.soldOut} />
-                  </td>
-
-                  <td>{row.soldOut === "예" ? row.soldOutTime : "-"}</td>
-                  <td>{row.memo}</td>
+              {orderItems.length === 0 ? (
+                <tr>
+                  <td colSpan="11">표시할 발주 품목이 없습니다.</td>
                 </tr>
-              ))}
+              ) : (
+                orderItems.map((item) => (
+                  <tr key={item.clientId}>
+                    <td>
+                      <strong>{item.itemName}</strong>
+                      <p>{item.category}</p>
+                    </td>
+                    <td>{formatNumber(getForecast(item))}</td>
+                    <td>
+                      <input
+                        className="mini-input"
+                        type="number"
+                        min="0"
+                        value={item.onHand}
+                        onChange={(event) =>
+                          handleNumberChange(
+                            item.clientId,
+                            "onHand",
+                            event.target.value,
+                          )
+                        }
+                        aria-label={`${item.itemName} 기준일 재고`}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        className="mini-input"
+                        type="number"
+                        min="0"
+                        value={item.planned}
+                        onChange={(event) =>
+                          handleNumberChange(
+                            item.clientId,
+                            "planned",
+                            event.target.value,
+                          )
+                        }
+                        aria-label={`${item.itemName} 기존 발주 예정량`}
+                      />
+                    </td>
+                    <td className="recommended-order">
+                      {item.decision === DECISION.ADJUST ? (
+                        <>
+                          <input
+                            className="mini-input order-adjust-input"
+                            type="number"
+                            min="0"
+                            value={item.finalQuantity}
+                            onChange={(event) =>
+                              handleNumberChange(
+                                item.clientId,
+                                "finalQuantity",
+                                event.target.value,
+                              )
+                            }
+                            aria-label={`${item.itemName} 조정 발주량`}
+                            autoFocus
+                          />
+                          <span>조정 수량</span>
+                        </>
+                      ) : (
+                        <>
+                          <strong>{formatNumber(item.recommendedQuantity)}</strong>
+                          <span>
+                            {item.decision === DECISION.EXCLUDE
+                              ? "발주 제외"
+                              : "시스템 추천"}
+                          </span>
+                        </>
+                      )}
+                    </td>
+                    <td>{formatNumber(item.extra)}</td>
+                    <td>{formatKg(getWasteSaving(item))}</td>
+                    <td>{formatKg(getCarbonSaving(item))}</td>
+                    <td>
+                      <span className={`status ${item.tone ?? ""}`}>
+                        {item.status}
+                      </span>
+                    </td>
+                    <td className="reason-cell">
+                      {item?.rationale?.interpolation ??
+                        item?.rationale?.reason ??
+                        "추천 근거가 없습니다."}
+                    </td>
+                    <td>
+                      <div className="decision-buttons">
+                        <button
+                          type="button"
+                          className={
+                            item.decision === DECISION.ACCEPT ? "selected" : ""
+                          }
+                          onClick={() =>
+                            handleDecision(item, DECISION.ACCEPT)
+                          }
+                        >
+                          수락
+                        </button>
+                        <button
+                          type="button"
+                          className={
+                            item.decision === DECISION.ADJUST ? "selected" : ""
+                          }
+                          onClick={() =>
+                            handleDecision(item, DECISION.ADJUST)
+                          }
+                        >
+                          조정
+                        </button>
+                        <button
+                          type="button"
+                          className={
+                            item.decision === DECISION.EXCLUDE ? "selected" : ""
+                          }
+                          onClick={() =>
+                            handleDecision(item, DECISION.EXCLUDE)
+                          }
+                        >
+                          제외
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
       </section>
 
-      <section className="upload-result-grid">
-        <div className="result-card success">
-          <CheckCircle2 size={22} />
-
-          <div>
-            <strong>검토 완료 예시</strong>
-            <p>accepted 128행 · rejected 0행 · 업로드 가능</p>
-          </div>
+      <section className="order-summary-card">
+        <div>
+          <span>선택 품목</span>
+          <strong>{summary.selectedCount}개</strong>
+        </div>
+        <div>
+          <span>총 확정 수량</span>
+          <strong>{formatNumber(summary.totalConfirmed)}</strong>
+        </div>
+        <div>
+          <span>기존 계획 대비</span>
+          <strong
+            className={summary.planDifference < 0 ? "red-text" : undefined}
+          >
+            {summary.planDifference > 0 ? "+" : ""}
+            {formatNumber(summary.planDifference)}
+          </strong>
+        </div>
+        <div>
+          <span>예상 절감 원가</span>
+          <strong>{formatCurrency(summary.costSaving)}</strong>
+        </div>
+        <div>
+          <span>예상 폐기 감소</span>
+          <strong>{formatKg(summary.wasteSaving)}</strong>
+        </div>
+        <div>
+          <span>예상 탄소 절감</span>
+          <strong>{formatKg(summary.carbonSaving)}</strong>
         </div>
 
-        <div className="result-card error">
-          <AlertTriangle size={22} />
-
-          <div>
-            <strong>오류 예시</strong>
-
-            <ul>
-              <li>필수 항목 판매수량 값이 비어 있습니다.</li>
-              <li>
-                행사, 신메뉴, 재고소진은 예 또는 아니오만 입력할 수
-                있습니다.
-              </li>
-              <li>
-                재고소진이 ‘예’인 경우 매진시각을 반드시 입력해야 합니다.
-              </li>
-              <li>{SALES_TARGET_DATE} 이외의 날짜가 포함되어 있습니다.</li>
-              <li>여러 날짜의 데이터가 포함되어 있습니다.</li>
-            </ul>
-          </div>
-        </div>
+        <button
+          className="confirm-order-btn order-action-button"
+          type="button"
+          onClick={handleOpenConfirm}
+          disabled={orderItems.length === 0}
+        >
+          {confirmed ? "발주안 확정 완료" : "발주안 확정"}
+        </button>
       </section>
+
+      {confirmed && (
+        <p className="order-confirmed-message">
+          {formatDate(ORDER_TARGET_DATE)} 발주안이 이력에 추가되었습니다.
+        </p>
+      )}
+
+      <section className="panel history-panel">
+        <div className="panel-title">
+          <h3>발주 이력</h3>
+        </div>
+
+        <table className="simple-table">
+          <thead>
+            <tr>
+              <th>확정 날짜</th>
+              <th>품목 수</th>
+              <th>계획 대비 변경</th>
+              <th>절감 원가</th>
+              <th>탄소 절감</th>
+              <th>상태</th>
+              <th>상세</th>
+            </tr>
+          </thead>
+          <tbody>
+            {history.map((record) => (
+              <tr key={record.id}>
+                <td>{formatDate(record.date)}</td>
+                <td>{record.itemCount}개</td>
+                <td className={record.planDifference < 0 ? "red-text" : undefined}>
+                  {record.planDifference > 0 ? "+" : ""}
+                  {formatNumber(record.planDifference)}
+                </td>
+                <td>{formatCurrency(record.costSaving)}</td>
+                <td>{formatKg(record.carbonSaving)}</td>
+                <td>
+                  <span className="status green">{record.status}</span>
+                </td>
+                <td>
+                  <button
+                    className="soft-btn order-action-button"
+                    type="button"
+                    onClick={() => setSelectedHistory(record)}
+                  >
+                    상세 보기
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+
+      {showConfirmModal && (
+        <div
+          className="order-modal-backdrop"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setShowConfirmModal(false);
+            }
+          }}
+        >
+          <div
+            className="order-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="confirm-order-title"
+          >
+            <div className="order-modal-header">
+              <h3 id="confirm-order-title">발주안 확정</h3>
+              <button
+                className="order-modal-close"
+                type="button"
+                onClick={() => setShowConfirmModal(false)}
+                aria-label="닫기"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="order-modal-body">
+              <p>
+                아래 내용으로 {formatDate(ORDER_TARGET_DATE)} 발주안을
+                확정하시겠습니까?
+              </p>
+              <div className="order-modal-summary">
+                <div>
+                  <span>선택 품목</span>
+                  <strong>{summary.selectedCount}개</strong>
+                </div>
+                <div>
+                  <span>총 확정 수량</span>
+                  <strong>{formatNumber(summary.totalConfirmed)}</strong>
+                </div>
+                <div>
+                  <span>기존 계획 대비</span>
+                  <strong>
+                    {summary.planDifference > 0 ? "+" : ""}
+                    {formatNumber(summary.planDifference)}
+                  </strong>
+                </div>
+                <div>
+                  <span>예상 탄소 절감</span>
+                  <strong>{formatKg(summary.carbonSaving)}</strong>
+                </div>
+              </div>
+            </div>
+
+            <div className="order-modal-actions">
+              <button
+                className="soft-btn"
+                type="button"
+                onClick={() => setShowConfirmModal(false)}
+              >
+                취소
+              </button>
+              <button
+                className="confirm-order-btn"
+                type="button"
+                onClick={handleConfirmOrder}
+              >
+                확정하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedHistory && (
+        <div
+          className="order-modal-backdrop"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setSelectedHistory(null);
+            }
+          }}
+        >
+          <div
+            className="order-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="history-detail-title"
+          >
+            <div className="order-modal-header">
+              <h3 id="history-detail-title">발주 이력 상세</h3>
+              <button
+                className="order-modal-close"
+                type="button"
+                onClick={() => setSelectedHistory(null)}
+                aria-label="닫기"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="order-modal-body">
+              <div className="order-modal-summary">
+                <div>
+                  <span>확정 날짜</span>
+                  <strong>{formatDate(selectedHistory.date)}</strong>
+                </div>
+                <div>
+                  <span>품목 수</span>
+                  <strong>{selectedHistory.itemCount}개</strong>
+                </div>
+                <div>
+                  <span>계획 대비 변경</span>
+                  <strong>
+                    {selectedHistory.planDifference > 0 ? "+" : ""}
+                    {formatNumber(selectedHistory.planDifference)}
+                  </strong>
+                </div>
+                <div>
+                  <span>절감 원가</span>
+                  <strong>{formatCurrency(selectedHistory.costSaving)}</strong>
+                </div>
+                <div>
+                  <span>탄소 절감</span>
+                  <strong>{formatKg(selectedHistory.carbonSaving)}</strong>
+                </div>
+                <div>
+                  <span>상태</span>
+                  <strong>{selectedHistory.status}</strong>
+                </div>
+              </div>
+
+              {selectedHistory.details?.length > 0 ? (
+                <div className="order-history-detail-list">
+                  <div className="order-history-detail-row">
+                    <strong>품목</strong>
+                    <strong>기존 계획</strong>
+                    <strong>추천</strong>
+                    <strong>확정</strong>
+                  </div>
+                  {selectedHistory.details.map((detail, index) => (
+                    <div
+                      className="order-history-detail-row"
+                      key={`${detail.itemName}-${index}`}
+                    >
+                      <span>
+                        <strong>{detail.itemName}</strong>
+                        {detail.category ? ` · ${detail.category}` : ""}
+                      </span>
+                      <span>{formatNumber(detail.planned)}</span>
+                      <span>{formatNumber(detail.recommendedQuantity)}</span>
+                      <span>{formatNumber(detail.finalQuantity)}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="order-empty-detail">
+                  이전 이력의 품목별 상세 데이터는 제공되지 않았습니다.
+                </div>
+              )}
+            </div>
+
+            <div className="order-modal-actions">
+              <button
+                className="confirm-order-btn"
+                type="button"
+                onClick={() => setSelectedHistory(null)}
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-export default Sales;
+export default Order;
